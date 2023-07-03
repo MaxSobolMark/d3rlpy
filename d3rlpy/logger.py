@@ -9,6 +9,7 @@ import numpy as np
 import structlog
 from tensorboardX import SummaryWriter
 from typing_extensions import Protocol
+import wandb
 
 
 class _SaveProtocol(Protocol):
@@ -31,7 +32,6 @@ LOG: structlog.BoundLogger = structlog.get_logger(__name__)
 
 
 class D3RLPyLogger:
-
     _experiment_name: str
     _logdir: str
     _save_metrics: bool
@@ -48,6 +48,8 @@ class D3RLPyLogger:
         root_dir: str = "logs",
         verbose: bool = True,
         with_timestamp: bool = True,
+        log_to_wandb: bool = True,
+        project_name: str = "d3rlpy",
     ):
         self._save_metrics = save_metrics
         self._verbose = verbose
@@ -76,14 +78,15 @@ class D3RLPyLogger:
         self._metrics_buffer = {}
 
         if tensorboard_dir:
-            tfboard_path = os.path.join(
-                tensorboard_dir, "runs", self._experiment_name
-            )
+            tfboard_path = os.path.join(tensorboard_dir, "runs", self._experiment_name)
             self._writer = SummaryWriter(logdir=tfboard_path)
         else:
             self._writer = None
 
         self._params = None
+        self._log_to_wandb = log_to_wandb
+        if log_to_wandb:
+            wandb.init(project=project_name, name=self._experiment_name)
 
     def add_params(self, params: Dict[str, Any]) -> None:
         assert self._params is None, "add_params can be called only once."
@@ -92,20 +95,18 @@ class D3RLPyLogger:
             # save dictionary as json file
             params_path = os.path.join(self._logdir, "params.json")
             with open(params_path, "w") as f:
-                json_str = json.dumps(
-                    params, default=default_json_encoder, indent=2
-                )
+                json_str = json.dumps(params, default=default_json_encoder, indent=2)
                 f.write(json_str)
 
             if self._verbose:
-                LOG.info(
-                    f"Parameters are saved to {params_path}", params=params
-                )
+                LOG.info(f"Parameters are saved to {params_path}", params=params)
         elif self._verbose:
             LOG.info("Parameters", params=params)
 
         # remove non-scaler values for HParams
         self._params = {k: v for k, v in params.items() if np.isscalar(v)}
+        if self._log_to_wandb:
+            wandb.config.update(params)
 
     def add_metric(self, name: str, value: float) -> None:
         if name not in self._metrics_buffer:
@@ -115,7 +116,6 @@ class D3RLPyLogger:
     def commit(self, epoch: int, step: int) -> Dict[str, float]:
         metrics = {}
         for name, buffer in self._metrics_buffer.items():
-
             metric = sum(buffer) / len(buffer)
 
             if self._save_metrics:
@@ -127,6 +127,9 @@ class D3RLPyLogger:
                     self._writer.add_scalar(f"metrics/{name}", metric, epoch)
 
             metrics[name] = metric
+
+        if self._log_to_wandb:
+            wandb.log({"epoch": epoch, "step": step, **metrics})
 
         if self._verbose:
             LOG.info(

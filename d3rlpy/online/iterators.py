@@ -118,6 +118,8 @@ def train_single_env(
     tensorboard_dir: Optional[str] = None,
     timelimit_aware: bool = True,
     callback: Optional[Callable[[AlgoProtocol, int, int], None]] = None,
+    log_to_wandb: bool = True,
+    project_name: str = "d3rlpy",
 ) -> None:
     """Start training loop of online deep reinforcement learning.
 
@@ -164,6 +166,8 @@ def train_single_env(
         verbose=verbose,
         tensorboard_dir=tensorboard_dir,
         with_timestamp=with_timestamp,
+        log_to_wandb=log_to_wandb,
+        project_name=project_name,
     )
     algo.set_active_logger(logger)
 

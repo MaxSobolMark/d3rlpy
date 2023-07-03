@@ -118,19 +118,14 @@ def _deseriealize_params(params: Dict[str, Any]) -> Dict[str, Any]:
         elif "optim_factory" in key:
             params[key] = OptimizerFactory(**value)
         elif "encoder_factory" in key:
-            params[key] = create_encoder_factory(
-                value["type"], **value["params"]
-            )
+            params[key] = create_encoder_factory(value["type"], **value["params"])
         elif key == "q_func_factory":
-            params[key] = create_q_func_factory(
-                value["type"], **value["params"]
-            )
+            params[key] = create_q_func_factory(value["type"], **value["params"])
     return params
 
 
 @pretty_repr
 class LearnableBase:
-
     _batch_size: int
     _n_frames: int
     _n_steps: int
@@ -185,9 +180,7 @@ class LearnableBase:
             setattr(self._impl, name, value)
 
     @classmethod
-    def from_json(
-        cls, fname: str, use_gpu: UseGPUArg = False
-    ) -> "LearnableBase":
+    def from_json(cls, fname: str, use_gpu: UseGPUArg = False) -> "LearnableBase":
         """Returns algorithm configured with json file.
 
         The Json file should be the one saved during fitting.
@@ -361,14 +354,12 @@ class LearnableBase:
         tensorboard_dir: Optional[str] = None,
         eval_episodes: Optional[List[Episode]] = None,
         save_interval: int = 1,
-        scorers: Optional[
-            Dict[str, Callable[[Any, List[Episode]], float]]
-        ] = None,
+        scorers: Optional[Dict[str, Callable[[Any, List[Episode]], float]]] = None,
         shuffle: bool = True,
         callback: Optional[Callable[["LearnableBase", int, int], None]] = None,
-        epoch_callback: Optional[
-            Callable[["LearnableBase", int, int], None]
-        ] = None,
+        epoch_callback: Optional[Callable[["LearnableBase", int, int], None]] = None,
+        log_to_wandb: bool = True,
+        project_name: str = "d3rlpy",
     ) -> List[Tuple[int, Dict[str, float]]]:
         """Trains with the given dataset.
 
@@ -428,6 +419,8 @@ class LearnableBase:
                 shuffle,
                 callback,
                 epoch_callback,
+                log_to_wandb,
+                project_name,
             )
         )
         return results
@@ -447,14 +440,12 @@ class LearnableBase:
         tensorboard_dir: Optional[str] = None,
         eval_episodes: Optional[List[Episode]] = None,
         save_interval: int = 1,
-        scorers: Optional[
-            Dict[str, Callable[[Any, List[Episode]], float]]
-        ] = None,
+        scorers: Optional[Dict[str, Callable[[Any, List[Episode]], float]]] = None,
         shuffle: bool = True,
         callback: Optional[Callable[["LearnableBase", int, int], None]] = None,
-        epoch_callback: Optional[
-            Callable[["LearnableBase", int, int], None]
-        ] = None,
+        epoch_callback: Optional[Callable[["LearnableBase", int, int], None]] = None,
+        log_to_wandb: bool = True,
+        project_name: str = "d3rlpy",
     ) -> Generator[Tuple[int, Dict[str, float]], None, None]:
         """Iterate over epochs steps to train with the given dataset. At each
              iteration algo methods and properties can be changed or queried.
@@ -563,6 +554,8 @@ class LearnableBase:
             logdir,
             verbose,
             tensorboard_dir,
+            log_to_wandb=log_to_wandb,
+            project_name=project_name,
         )
 
         # add reference to active logger to algo class during fit
@@ -614,7 +607,6 @@ class LearnableBase:
         # training loop
         total_step = 0
         for epoch in range(1, n_epochs + 1):
-
             # dict to add incremental mean losses to epoch
             epoch_loss = defaultdict(list)
 
@@ -627,7 +619,6 @@ class LearnableBase:
             iterator.reset()
 
             for itr in range_gen:
-
                 # generate new transitions with dynamics models
                 new_transitions = self.generate_new_data(
                     transitions=iterator.transitions,
@@ -656,9 +647,7 @@ class LearnableBase:
 
                     # update progress postfix with losses
                     if itr % 10 == 0:
-                        mean_loss = {
-                            k: np.mean(v) for k, v in epoch_loss.items()
-                        }
+                        mean_loss = {k: np.mean(v) for k, v in epoch_loss.items()}
                         range_gen.set_postfix(mean_loss)
 
                 total_step += 1
@@ -694,9 +683,7 @@ class LearnableBase:
         self._active_logger.close()
         self._active_logger = None
 
-    def create_impl(
-        self, observation_shape: Sequence[int], action_size: int
-    ) -> None:
+    def create_impl(self, observation_shape: Sequence[int], action_size: int) -> None:
         """Instantiate implementation objects with the dataset shapes.
 
         This method will be used internally when `fit` method is called.
@@ -710,9 +697,7 @@ class LearnableBase:
             LOG.warn("Parameters will be reinitialized.")
         self._create_impl(observation_shape, action_size)
 
-    def _create_impl(
-        self, observation_shape: Sequence[int], action_size: int
-    ) -> None:
+    def _create_impl(self, observation_shape: Sequence[int], action_size: int) -> None:
         raise NotImplementedError
 
     def build_with_dataset(self, dataset: MDPDataset) -> None:
@@ -792,6 +777,8 @@ class LearnableBase:
         logdir: str,
         verbose: bool,
         tensorboard_dir: Optional[str],
+        log_to_wandb: bool = True,
+        project_name: str = "d3rlpy",
     ) -> D3RLPyLogger:
         if experiment_name is None:
             experiment_name = self.__class__.__name__
@@ -803,6 +790,8 @@ class LearnableBase:
             verbose=verbose,
             tensorboard_dir=tensorboard_dir,
             with_timestamp=with_timestamp,
+            log_to_wandb=log_to_wandb,
+            project_name=project_name,
         )
 
         return logger

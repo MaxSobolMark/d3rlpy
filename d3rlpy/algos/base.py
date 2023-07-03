@@ -36,9 +36,7 @@ class AlgoImplBase(ImplBase):
         pass
 
     @abstractmethod
-    def predict_best_action(
-        self, x: Union[np.ndarray, List[Any]]
-    ) -> np.ndarray:
+    def predict_best_action(self, x: Union[np.ndarray, List[Any]]) -> np.ndarray:
         pass
 
     @abstractmethod
@@ -71,7 +69,6 @@ class AlgoImplBase(ImplBase):
 
 
 class AlgoBase(LearnableBase):
-
     _impl: Optional[AlgoImplBase]
 
     def save_policy(self, fname: str) -> None:
@@ -206,6 +203,8 @@ class AlgoBase(LearnableBase):
         tensorboard_dir: Optional[str] = None,
         timelimit_aware: bool = True,
         callback: Optional[Callable[[AlgoProtocol, int, int], None]] = None,
+        log_to_wandb: bool = True,
+        project_name: str = "d3rlpy",
     ) -> None:
         """Start training loop of online deep reinforcement learning.
 
@@ -270,6 +269,8 @@ class AlgoBase(LearnableBase):
             tensorboard_dir=tensorboard_dir,
             timelimit_aware=timelimit_aware,
             callback=callback,
+            log_to_wandb=log_to_wandb,
+            project_name=project_name,
         )
 
     def collect(
